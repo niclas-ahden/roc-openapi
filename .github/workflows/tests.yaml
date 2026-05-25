@@ -1,0 +1,42 @@
+name: Tests
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+# this cancels workflows currently in progress if you start a new one
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  run-tests:
+    runs-on: ubuntu-latest
+    name: Run Roc tests
+    steps:
+      - name: Check out roc-openapi
+        uses: actions/checkout@v4
+        with:
+          path: roc-openapi
+
+      - name: Install Roc
+        uses: hasnep/setup-roc@main
+        with:
+          roc-version: nightly
+          testing: "true"
+
+      - name: Check the Roc version
+        run: roc --version
+
+      # `roc test` only walks inline `expect` blocks; the integration suites
+      # under tests/ need `roc dev`. `tests.sh` invokes both in sequence.
+      - name: Run test suite
+        working-directory: roc-openapi
+        run: ./tests.sh
+
+      - name: Verify docs build
+        working-directory: roc-openapi
+        run: roc docs package/main.roc

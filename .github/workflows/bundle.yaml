@@ -1,0 +1,50 @@
+name: Bundle
+
+on:
+  # Run when a release is published
+  release:
+    types:
+      - published
+
+jobs:
+  bundle:
+    name: Bundle
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Check out roc-openapi
+        uses: actions/checkout@v4
+        with:
+          path: roc-openapi
+
+      - name: Install Roc
+        uses: hasnep/setup-roc@main
+        with:
+          roc-version: nightly
+
+      # Generate the docs for this release and attach them as a release
+      # asset. The Pages deploy (deploy-docs.yml) collects these assets to
+      # build the versioned docs site -- so each version's docs are frozen
+      # here, not committed to the repo. See deploy-docs.yml.
+      - name: Generate docs
+        working-directory: roc-openapi
+        env:
+          ROC_DOCS_URL_ROOT: /roc-openapi/${{ github.event.release.tag_name }}
+        run: roc docs package/main.roc
+
+      - name: Package docs
+        working-directory: roc-openapi
+        run: tar -czf docs.tar.gz -C generated-docs .
+
+      - name: Upload docs to release
+        working-directory: roc-openapi
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "${{ github.event.release.tag_name }}" docs.tar.gz --repo "${{ github.repository }}"
+
+      - name: Bundle and release the library
+        uses: hasnep/bundle-roc-library@v0.1.0
+        with:
+          library: roc-openapi/package/main.roc
+          token: ${{ github.token }}

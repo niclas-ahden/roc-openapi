@@ -1,0 +1,13 @@
+# Ignore generated binaries (with no extension) by default.
+# Tracked extension-less files (LICENSE, etc.) must be allow-listed below.
+*
+!*.*
+!*/
+!LICENSE
+
+.direnv/
+.envrc
+generated-docs/
+www/
+result
+
