@@ -44,7 +44,8 @@ jobs:
         run: gh release upload "${{ github.event.release.tag_name }}" docs.tar.gz --repo "${{ github.repository }}"
 
       - name: Bundle and release the library
-        uses: hasnep/bundle-roc-library@v0.1.0
+        uses: hasnep/bundle-roc-library@v0.2.1
         with:
           library: roc-openapi/package/main.roc
+          tag: ${{ github.event.release.tag_name }}
           token: ${{ github.token }}
