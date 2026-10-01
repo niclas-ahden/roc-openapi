@@ -1,13 +1,11 @@
-# Ignore generated binaries (with no extension) by default.
-# Tracked extension-less files (LICENSE, etc.) must be allow-listed below.
+# Ignore generated binaries (with no extension) by default
 *
 !*.*
 !*/
-!LICENSE
 
 .direnv/
 .envrc
 generated-docs/
-www/
-result
 
+# The catch-alls above ignore extensionless files, but this one must ship
+!LICENSE
