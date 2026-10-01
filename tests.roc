@@ -50,12 +50,12 @@ opt! = |{}|
 		_ => "speed"
 	}
 
-## Parse command line args into pattern and flags
+## Parse command line args into pattern and flags. basic-cli passes only the
+## args after the script, without the program name.
 parse_args : List(Str) -> { pattern : Str, fail_fast : Bool }
 parse_args = |args| {
-	rest = args.drop_first(1)
-	pattern = rest.keep_if(|a| !a.starts_with("--")).first().ok_or("")
-	fail_fast = rest.contains("--fail-fast")
+	pattern = args.keep_if(|a| !a.starts_with("--")).first().ok_or("")
+	fail_fast = args.contains("--fail-fast")
 	{ pattern, fail_fast }
 }
 
