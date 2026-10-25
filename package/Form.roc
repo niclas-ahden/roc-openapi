@@ -227,6 +227,7 @@ types_of = |shape|
 # else the "additionalProperties" schema, in each branch that has one.
 field_shape : Shape, Str, Schema.Doc -> Shape
 field_shape = |shape, key, doc| {
+	field_schema : JsonValue -> Try(JsonValue, [NoSchema])
 	field_schema = |branch|
 		match branch.get_field("properties").map_ok(|properties| properties.get_field(key)) {
 			Ok(Ok(schema)) => Ok(schema)

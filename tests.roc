@@ -11,13 +11,13 @@
 ##
 ## Run from the repository root. CI runs this via `nix develop -c ./tests.roc`.
 app [main!] {
-	pf: platform "https://github.com/niclas-ahden/basic-cli/releases/download/0.27.0/HZanbveSUDoJF8LypR663eH7PpaKEKG36eErEQzmV1Qs.tar.zst",
+	pf: platform "https://github.com/niclas-ahden/basic-cli/releases/download/0.30.0/6XAUy48Jp34GANurMrMf74DtF7NdpkhnqFLHE4gHNzJy.tar.zst",
 	spec: "https://github.com/niclas-ahden/roc-spec/releases/download/0.6.0/9ThTkhd7zrviwQpM3LvGd7pvzGhr4ZXNmWJV7pTJc9AJ.tar.zst",
 }
 
 import pf.Cmd
 import pf.Env
-import pf.OsStr exposing [OsStr]
+import pf.OsStr
 import pf.Path
 import pf.Sleep
 import pf.Stderr
@@ -27,20 +27,47 @@ import spec.Spec
 
 effects = {
 	spawn_test!: |file, envs|
-		Cmd.new(OsStr.utf8("roc"))
-			.args_str(["--opt=${opt!({})}", file])
-			.envs_str(envs)
+		Cmd.new(OsStr.from_str("roc"))
+			.args(["--opt=${opt!({})}", OsStr.from_str(file)])
+			.envs(envs.map(|(name, value)| (OsStr.from_str(name), OsStr.from_str(value))))
 			.stdout(Capture)
 			.stderr(Capture)
 			.spawn_leashed!(),
-	try_wait!: Cmd.Child.try_wait!,
+	try_wait!: |child|
+		match child.poll!() {
+			Ok(Running) => Ok([])
+			Ok(Finished(output)) => Ok([ended(output)])
+			Err(CmdErr(err)) => Err(from_cmd_err(err))
+			Err(other) => Err(IO(Str.inspect(other)))
+		},
 	kill!: Cmd.Child.kill!,
-	wait!: Cmd.Child.wait!,
+	wait!: |child|
+		match child.wait!() {
+			Ok(output) => Ok(ended(output))
+			Err(CmdErr(err)) => Err(from_cmd_err(err))
+			Err(other) => Err(IO(Str.inspect(other)))
+		},
 	list_dir!: |dir| Path.list!(Path.utf8(dir)).map_ok(|entries| entries.map(Path.display)),
 	print!: Stdout.line!,
-	utc_now!: Utc.now!,
-	sleep_millis!: Sleep.millis!,
+	utc_now!: || Utc.now!().to_nanos_since_epoch().to_u128_wrap(),
+	sleep_millis!: |millis| {
+		_ = Sleep.millis!(millis)
+		{}
+	},
 }
+
+## How a test ended and what it printed, as `Spec` reads it.
+ended : Cmd.Output -> { status : [Exited(I32), Signaled(I32)], stdout_bytes : List(U8), stderr_bytes : List(U8) }
+ended = |output| { status: output.status, stdout_bytes: output.stdout_bytes, stderr_bytes: output.stderr_bytes }
+
+## The platform's own deadline and output limit, as `Spec` reads them.
+from_cmd_err : Cmd.Err -> [Timeout(Cmd.PartialOutput), OutputLimit(Cmd.PartialOutput), IO(Str)]
+from_cmd_err = |err|
+	match err {
+		TimedOut(partial) => Timeout(partial)
+		OutputLimitExceeded(partial) => OutputLimit(partial)
+		other => IO(other.to_str())
+	}
 
 ## Optimization level every test is built with.
 opt! : {} => Str
@@ -78,7 +105,7 @@ warm_package_cache! = |test_dir| {
 			Stdout.line!("Warming the package cache...")?
 			# Whatever this reports about the file itself is the test run's
 			# business, so the output and the exit code are both dropped here.
-			_ = Cmd.new(OsStr.utf8("roc")).args_str(["check", file]).exec_output!()
+			_ = Cmd.new("roc").args(["check", OsStr.from_str(file)]).run!()
 			Ok({})
 		}
 	}
