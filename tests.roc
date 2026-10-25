@@ -12,7 +12,7 @@
 ## Run from the repository root. CI runs this via `nix develop -c ./tests.roc`.
 app [main!] {
 	pf: platform "https://github.com/niclas-ahden/basic-cli/releases/download/0.30.0/6XAUy48Jp34GANurMrMf74DtF7NdpkhnqFLHE4gHNzJy.tar.zst",
-	spec: "https://github.com/niclas-ahden/roc-spec/releases/download/0.6.0/9ThTkhd7zrviwQpM3LvGd7pvzGhr4ZXNmWJV7pTJc9AJ.tar.zst",
+	spec: "https://github.com/niclas-ahden/roc-spec/releases/download/0.7.0/BGjQKbG9U3V8cH6mRbypUAFVqFoVEu6n9bsA3QmFL1f4.tar.zst",
 }
 
 import pf.Cmd
@@ -25,49 +25,21 @@ import pf.Stdout
 import pf.Utc
 import spec.Spec
 
-effects = {
-	spawn_test!: |file, envs|
-		Cmd.new(OsStr.from_str("roc"))
-			.args(["--opt=${opt!({})}", OsStr.from_str(file)])
-			.envs(envs.map(|(name, value)| (OsStr.from_str(name), OsStr.from_str(value))))
-			.stdout(Capture)
-			.stderr(Capture)
-			.spawn_leashed!(),
-	try_wait!: |child|
-		match child.poll!() {
-			Ok(Running) => Ok([])
-			Ok(Finished(output)) => Ok([ended(output)])
-			Err(CmdErr(err)) => Err(from_cmd_err(err))
-			Err(other) => Err(IO(Str.inspect(other)))
-		},
+## The basic-cli functions `Spec` uses, passed as they are.
+hooks = {
+	new: Cmd.new,
+	os_str: OsStr.from_str,
+	# Leashed, so a test killed on timeout takes its descendants with it.
+	spawn!: Cmd.Command.spawn_leashed!,
+	poll!: Cmd.Child.poll!,
+	wait!: Cmd.Child.wait!,
 	kill!: Cmd.Child.kill!,
-	wait!: |child|
-		match child.wait!() {
-			Ok(output) => Ok(ended(output))
-			Err(CmdErr(err)) => Err(from_cmd_err(err))
-			Err(other) => Err(IO(Str.inspect(other)))
-		},
-	list_dir!: |dir| Path.list!(Path.utf8(dir)).map_ok(|entries| entries.map(Path.display)),
+	path: Path.utf8,
+	list!: Path.list!,
 	print!: Stdout.line!,
-	utc_now!: || Utc.now!().to_nanos_since_epoch().to_u128_wrap(),
-	sleep_millis!: |millis| {
-		_ = Sleep.millis!(millis)
-		{}
-	},
+	now!: Utc.now!,
+	sleep!: Sleep.millis!,
 }
-
-## How a test ended and what it printed, as `Spec` reads it.
-ended : Cmd.Output -> { status : [Exited(I32), Signaled(I32)], stdout_bytes : List(U8), stderr_bytes : List(U8) }
-ended = |output| { status: output.status, stdout_bytes: output.stdout_bytes, stderr_bytes: output.stderr_bytes }
-
-## The platform's own deadline and output limit, as `Spec` reads them.
-from_cmd_err : Cmd.Err -> [Timeout(Cmd.PartialOutput), OutputLimit(Cmd.PartialOutput), IO(Str)]
-from_cmd_err = |err|
-	match err {
-		TimedOut(partial) => Timeout(partial)
-		OutputLimitExceeded(partial) => OutputLimit(partial)
-		other => IO(other.to_str())
-	}
 
 ## Optimization level every test is built with.
 opt! : {} => Str
@@ -119,9 +91,10 @@ main! = |os_args| {
 	warm_package_cache!("tests")?
 
 	results = Spec.run_filtered!(
-		effects,
+		hooks,
 		"tests",
 		{
+			test_command: ["roc", "--opt=${opt!({})}"],
 			max_workers: 4,
 			worker_envs: |_index| [],
 			before_each!: |_index| Ok({}),
