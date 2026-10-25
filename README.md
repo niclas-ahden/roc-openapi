@@ -7,7 +7,7 @@ Validate HTTP request bodies, JSON or forms, against [OpenAPI](https://www.opena
 ```roc
 app [main!] {
 	pf: platform "https://github.com/niclas-ahden/basic-cli/releases/download/0.27.0/HZanbveSUDoJF8LypR663eH7PpaKEKG36eErEQzmV1Qs.tar.zst",
-	openapi: "https://github.com/niclas-ahden/roc-openapi/releases/download/0.2.0/J4TCLrSzmB2XKHN9BLxcREjG4LUUgkH4uUoMZcsy32Qm.tar.zst",
+	openapi: "https://github.com/niclas-ahden/roc-openapi/releases/download/0.2.1/5fQEMmB1UxbMjEPV8QLzz5qztEM9dvCLtG93KHsYYZ8g.tar.zst",
 }
 
 import pf.Stdout
