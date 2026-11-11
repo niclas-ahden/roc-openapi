@@ -27,13 +27,10 @@ JsonValue := [
 	parse = |bytes| {
 		text = Str.from_utf8(bytes) ? |BadUtf8({ index, problem: _ })| InvalidJson("Invalid UTF-8 at byte ${index.to_str()}")
 		Json.parse(text).map_err(
-			|problem|
-				match problem {
-					Malformed({ expected, at }) => InvalidJson("${expected} at ${JsonValue.pointer(at)}")
-					TooDeep => InvalidJson("Nested deeper than ${max_nesting_depth.to_str()} levels")
-					# The builtin parser fails on its own only for text after a whole document.
-					InvalidJson(_) => InvalidJson("Unexpected text after the document")
-				},
+			|InvalidJson(message)|
+				# The builtin parser fails on its own only for text after a whole
+				# document, with this message, which `parser_for` never gives.
+				if message == "Invalid JSON" InvalidJson("Unexpected text after the document") else InvalidJson(message),
 		)
 	}
 
@@ -54,7 +51,7 @@ JsonValue := [
 	pointer : List(Str) -> Str
 	pointer = |path| "/${Str.join_with(path.map(escape_segment), "/")}"
 
-	parser_for = |encoding| |state| parse_value(encoding, state, 0)
+	parser_for = |encoding| |state| parse_value(encoding, state, 0).map_err(as_invalid_json)
 
 	## Equality as JSON Schema defines it, which is what `==` and `!=` call.
 	## Objects are equal when they have the same fields, in any order. Floats
@@ -287,6 +284,14 @@ parse_fields = |encoding, state, fields, depth| {
 		}
 	}
 }
+
+# A failure as the JSON format reports it, which every parser of a format must
+# use: what was expected and where, as a JSON Pointer.
+as_invalid_json = |problem|
+	match problem {
+		Malformed({ expected, at }) => InvalidJson("${expected} at ${JsonValue.pointer(at)}")
+		TooDeep => InvalidJson("Nested deeper than ${max_nesting_depth.to_str()} levels")
+	}
 
 # A failure inside the field or item `segment`, seen from the value around it.
 inside = |problem, segment|
