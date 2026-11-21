@@ -8,15 +8,15 @@ import JsonValue
 import Pattern
 import ValidationError
 
-## A document to validate against, such as a spec, with every `pattern` in it
-## compiled.
-Doc : { root : JsonValue, patterns : Dict(Str, Try(Pattern, [Unsupported(Str)])) }
-
-# Where validation is: the document, the place in the body that errors report,
-# and the refs entered at that place.
-At : { doc : Doc, path : List(Str), entered : List(Str) }
-
 Schema :: [].{
+
+	## A document to validate against, such as a spec, with every `pattern` in it
+	## compiled.
+	Doc : { root : JsonValue, patterns : Dict(Str, Try(Pattern, [Unsupported(Str)])) }
+
+	# Where validation is: the document, the place in the body that errors report,
+	# and the refs entered at that place.
+	At : { doc : Doc, path : List(Str), entered : List(Str) }
 
 	## Prepare a document to validate against: a spec, or a schema that is its
 	## own root. Every `pattern` in it is compiled here, once, rather than for
